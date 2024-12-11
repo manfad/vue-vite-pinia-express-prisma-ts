@@ -1,73 +1,28 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import cors from 'cors';
-import { PrismaClient } from '@prisma/client';
+import bookRoutes from './routes/bookRoutes';
+import authRoutes from './routes/authRoutes';
+import { authenticateToken } from './middleware/auth';
 
 const app = express();
-const prisma = new PrismaClient();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    credentials: true
+}));
 app.use(express.json());
 
-// Root route
-app.get('/', (req: Request, res: Response) => {
-  res.json({ message: 'API is running' });
+// Public routes
+app.get('/', (req, res) => {
+    res.json({ message: 'API is running' });
 });
+app.use('/api/auth', authRoutes);
 
-// Get all posts
-app.get('/api/posts', async (req: Request, res: Response) => {
-  try {
-    const posts = await prisma.post.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
-    res.json(posts);
-  } catch (error) {
-    res.status(500).json({ error: 'Error fetching posts' });
-  }
-});
-
-// Create post
-app.post('/api/posts', async (req: Request, res: Response) => {
-  try {
-    const { title, content } = req.body;
-    const post = await prisma.post.create({
-      data: { title, content },
-    });
-    res.json(post);
-  } catch (error) {
-    res.status(500).json({ error: 'Error creating post' });
-  }
-});
-
-// Update post
-app.put('/api/posts/:id', async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { title, content } = req.body;
-    const post = await prisma.post.update({
-      where: { id: Number(id) },
-      data: { title, content },
-    });
-    res.json(post);
-  } catch (error) {
-    res.status(500).json({ error: 'Error updating post' });
-  }
-});
-
-// Delete post
-app.delete('/api/posts/:id', async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    await prisma.post.delete({
-      where: { id: Number(id) },
-    });
-    res.json({ message: 'Post deleted' });
-  } catch (error) {
-    res.status(500).json({ error: 'Error deleting post' });
-  }
-});
+// Protected routes
+app.use('/api/books', authenticateToken, bookRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
 }); 
